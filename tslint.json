@@ -7,10 +7,7 @@
   },
   "rules": {
     "indent": [true, "spaces", 2],
-    "prettier": true,
-    "no-floating-promises": false,
-    "promise-function-async": true,
-    "await-promise": true
+    "prettier": true
   },
   "jsRules": {
     "no-empty": true

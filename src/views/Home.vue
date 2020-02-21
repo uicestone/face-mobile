@@ -1,13 +1,15 @@
 <template>
   <div class="home" style="display:flex">
-    <video ref="video" style="width: 100px;height: 100px" loop preload=""></video>
-    <canvas ref="canvas" style="width: 100px;height: 100px"></canvas>
+    <video ref="video" style="width: 300px;height: 300px" loop preload=""></video>
+    <div ref="canvas" style="width: 300px;height: 300px"></div>
+    <!-- <canvas ref="canvas" style="display: none"></canvas> -->
     <div>
       <el-input v-model="createPersonForm.PersonName" placeholder="用户名"></el-input>
       <el-radio v-model="createPersonForm.Gender" :label="1">男</el-radio>
       <el-radio v-model="createPersonForm.Gender" :label="2">女</el-radio>
 
       <div>
+        <el-button @click="getFace">获取人脸</el-button>
         <el-button @click="checkFace">检测人脸</el-button>
         <el-button @click="createPerson" :disabled="!canCreatePersonForm">创建人员</el-button>
       </div>
@@ -27,78 +29,108 @@
 <script lang="ts">
 import { ApiService } from "../utils/axios";
 import config from "../config";
+import { Vue, Component } from "vue-property-decorator";
+import * as faceapi from "face-api.js";
 
-export default {
-  name: "Home",
-  data() {
-    return {
-      apiRoot: config.apiRoot,
-      video: undefined as HTMLVideoElement | undefined,
-      mediaStreamTrack: undefined as MediaStream | undefined,
-      photoUrl: "",
-      searchResult: undefined as Array<any> | undefined,
-      createPersonForm: {
-        PersonName: null,
-        Gender: null
-      }
-    };
-  },
+@Component
+export default class Home extends Vue {
+  apiRoot = config.apiRoot;
+  video: HTMLVideoElement = null;
+  photoUrl = "";
+  searchResult: Array<any> = null;
+  createPersonForm = {
+    PersonName: null,
+    Gender: null
+  };
+
+  get canCreatePersonForm() {
+    const { PersonName, Gender } = this.createPersonForm;
+    return PersonName && Gender;
+  }
+
   mounted() {
     this.init();
-  },
-  computed: {
-    canCreatePersonForm() {
-      //@ts-ignore
-      const { PersonName, Gender } = this.createPersonForm;
-      return PersonName && Gender;
-    }
-  },
-  methods: {
-    loadImage(faceId: string) {
-      return `${this.apiRoot}/static/${faceId}.png`;
-    },
-    async checkFace() {
-      this.getImage();
-      const Image = this.photoUrl;
-      const result = await ApiService.SearchFaces({ Image });
-      console.log(result);
-      this.searchResult = result.data.Results;
-    },
-    async createPerson() {
-      this.getImage();
-      const Image = this.photoUrl;
-      //@ts-ignore
-      const result = await ApiService.CreatePerson({ Image, ...this.createPersonForm });
-      console.log(result);
-    },
-    getImage() {
-      const canvas = this.$refs.canvas as HTMLCanvasElement;
-      canvas.width = this.video!.videoWidth;
-      canvas.height = this.video!.videoHeight;
-      canvas.getContext("2d")!.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
-      this.photoUrl = canvas.toDataURL("image/png");
-    },
-    init() {
-      //@ts-ignore
-      let video = (this.video = this.$refs.video as HTMLVideoElement);
-      navigator.mediaDevices
-        .getUserMedia({
-          audio: false,
-          video: {
-            width: { min: 100, ideal: 100 },
-            height: { min: 100, ideal: 100 }
-          }
-        })
-        .then(stream => {
-          this.mediaStreamTrack = stream;
-          this.video!.srcObject = stream;
-          this.video!.play();
-        })
-        .catch(error => {
-          console.log(error);
-          this.$message.error("摄像头打开失败,请检查权限设置!");
-        });
+  }
+
+  loadImage(faceId: string) {
+    return `${this.apiRoot}/static/${faceId}.png`;
+  }
+
+  getImage() {
+    const canvas = this.$refs.canvas as HTMLCanvasElement;
+    canvas.width = this.video!.videoWidth;
+    canvas.height = this.video!.videoHeight;
+    canvas.getContext("2d")!.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
+    this.photoUrl = canvas.toDataURL("image/png");
+  }
+
+  async init() {
+    await this.initFaceApi();
+  }
+  async initVideo() {
+    //@ts-ignore
+    let video = (this.video = this.$refs.video as HTMLVideoElement);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          width: { min: 300, ideal: 300 },
+          height: { min: 300, ideal: 300 }
+        }
+      });
+      this.video!.srcObject = stream;
+    } catch (error) {
+      console.log(error);
+      this.$message.error("摄像头打开失败,请检查权限设置!");
     }
   }
-};
+  async initFaceApi() {
+    const MODEL_URL = "/models";
+
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
+    await this.initVideo();
+    this.video.addEventListener("play", () => {
+      const canvas = faceapi.createCanvasFromMedia(this.video);
+      const canvasBox = this.$refs.canvas as HTMLDivElement;
+      canvasBox.appendChild(canvas);
+      const displaySize = { width: this.video.videoWidth, height: this.video.videoHeight };
+      faceapi.matchDimensions(canvas, displaySize);
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
+        console.log(detections);
+        const resizedDetections = faceapi.resizeResults(detections, displaySize);
+        const c2d = canvas.getContext("2d");
+        c2d.clearRect(0, 0, canvas.width, canvas.height);
+        c2d.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
+        faceapi.draw.drawDetections(canvas, resizedDetections);
+      }, 100);
+    });
+    setTimeout(() => {
+      this.video.play();
+    }, 500);
+    console.log("load model finished");
+  }
+  async getFace() {
+    const face = this.$refs.video as any;
+    //@ts-ignore
+    const detections = await faceapi.detectAllFaces(face, new faceapi.TinyFaceDetectorOptions());
+    console.log(detections);
+    const faceImages = await faceapi.extractFaces(face, detections);
+    console.log(faceImages);
+  }
+
+  async checkFace() {
+    this.getImage();
+    const Image = this.photoUrl;
+    const result = await ApiService.SearchFaces({ Image });
+    this.searchResult = result.data.Results;
+  }
+  async createPerson() {
+    this.getImage();
+    const Image = this.photoUrl;
+    //@ts-ignore
+    const result = await ApiService.CreatePerson({ Image, ...this.createPersonForm });
+    console.log(result);
+  }
+}
 </script>
