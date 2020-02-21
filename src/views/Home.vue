@@ -1,16 +1,21 @@
 <template>
   <div class="home" style="display:flex">
     <video ref="video" style="width: 300px;height: 300px" loop preload=""></video>
-    <div ref="canvas" style="width: 300px;height: 300px"></div>
-    <!-- <canvas ref="canvas" style="display: none"></canvas> -->
+    <canvas ref="canvas" style="display: none"></canvas>
+    <div ref="imgs">
+      <div :class="{ 'select-img': (currentImg = item) }" v-for="(item, index) in images" :key="index" @click="currentImg = item">
+        <img :src="item" />
+      </div>
+    </div>
+
     <div>
       <el-input v-model="createPersonForm.PersonName" placeholder="用户名"></el-input>
       <el-radio v-model="createPersonForm.Gender" :label="1">男</el-radio>
       <el-radio v-model="createPersonForm.Gender" :label="2">女</el-radio>
 
       <div>
-        <el-button @click="getFace">获取人脸</el-button>
-        <el-button @click="checkFace">检测人脸</el-button>
+        <el-button @click="getFace" :loading="modeloading || !videoReady">拍照</el-button>
+        <el-button @click="checkFace" :loading="modeloading || !videoReady">检测人脸</el-button>
         <el-button @click="createPerson" :disabled="!canCreatePersonForm">创建人员</el-button>
       </div>
       <div v-if="searchResult">
@@ -36,8 +41,11 @@ import * as faceapi from "face-api.js";
 export default class Home extends Vue {
   apiRoot = config.apiRoot;
   video: HTMLVideoElement = null;
-  photoUrl = "";
+  currentImg = "";
+  images = [];
   searchResult: Array<any> = null;
+  modeloading = true;
+  videoReady = false;
   createPersonForm = {
     PersonName: null,
     Gender: null
@@ -56,12 +64,15 @@ export default class Home extends Vue {
     return `${this.apiRoot}/static/${faceId}.png`;
   }
 
-  getImage() {
+  async getImage() {
     const canvas = this.$refs.canvas as HTMLCanvasElement;
+    const imgs = this.$refs.imgs as HTMLDivElement;
     canvas.width = this.video!.videoWidth;
     canvas.height = this.video!.videoHeight;
     canvas.getContext("2d")!.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
-    this.photoUrl = canvas.toDataURL("image/png");
+    const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
+    const faceImages = await faceapi.extractFaces(canvas, detections);
+    this.images = faceImages.map(i => i.toDataURL());
   }
 
   async init() {
@@ -79,6 +90,10 @@ export default class Home extends Vue {
         }
       });
       this.video!.srcObject = stream;
+      this.video.addEventListener("play", () => {
+        this.videoReady = true;
+      });
+      this.video.play();
     } catch (error) {
       console.log(error);
       this.$message.error("摄像头打开失败,请检查权限设置!");
@@ -87,50 +102,51 @@ export default class Home extends Vue {
   async initFaceApi() {
     const MODEL_URL = "/models";
 
-    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
-    await this.initVideo();
-    this.video.addEventListener("play", () => {
-      const canvas = faceapi.createCanvasFromMedia(this.video);
-      const canvasBox = this.$refs.canvas as HTMLDivElement;
-      canvasBox.appendChild(canvas);
-      const displaySize = { width: this.video.videoWidth, height: this.video.videoHeight };
-      faceapi.matchDimensions(canvas, displaySize);
-      setInterval(async () => {
-        const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
-        console.log(detections);
-        const resizedDetections = faceapi.resizeResults(detections, displaySize);
-        const c2d = canvas.getContext("2d");
-        c2d.clearRect(0, 0, canvas.width, canvas.height);
-        c2d.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
-        faceapi.draw.drawDetections(canvas, resizedDetections);
-      }, 100);
-    });
-    setTimeout(() => {
-      this.video.play();
-    }, 500);
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL), this.initVideo()]);
+    this.modeloading = false;
+    // this.video.addEventListener("play", () => {
+    //   const canvas = faceapi.createCanvasFromMedia(this.video);
+    //   const canvasBox = this.$refs.canvas as HTMLDivElement;
+    //   canvasBox.appendChild(canvas);
+    //   const displaySize = { width: this.video.videoWidth, height: this.video.videoHeight };
+    //   faceapi.matchDimensions(canvas, displaySize);
+    //   setInterval(async () => {
+    //     const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
+    //     const faceImages = await faceapi.extractFaces(this.vi)
+    //     console.log(detections);
+    //     const resizedDetections = faceapi.resizeResults(detections, displaySize);
+    //     const c2d = canvas.getContext("2d");
+    //     c2d.clearRect(0, 0, canvas.width, canvas.height);
+    //     c2d.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
+    //     faceapi.draw.drawDetections(canvas, resizedDetections);
+    //   }, 1000);
+    // });
+    // setTimeout(() => {
+    //   this.video.play();
+    // }, 500);
     console.log("load model finished");
   }
   async getFace() {
-    const face = this.$refs.video as any;
-    //@ts-ignore
-    const detections = await faceapi.detectAllFaces(face, new faceapi.TinyFaceDetectorOptions());
-    console.log(detections);
-    const faceImages = await faceapi.extractFaces(face, detections);
-    console.log(faceImages);
+    this.getImage();
   }
 
   async checkFace() {
-    this.getImage();
-    const Image = this.photoUrl;
+    const Image = this.currentImg;
     const result = await ApiService.SearchFaces({ Image });
     this.searchResult = result.data.Results;
   }
   async createPerson() {
     this.getImage();
-    const Image = this.photoUrl;
+    const Image = this.currentImg;
     //@ts-ignore
     const result = await ApiService.CreatePerson({ Image, ...this.createPersonForm });
     console.log(result);
   }
 }
 </script>
+
+
+<style lang="stylus" scoped>
+.select-img
+  border solid 2px blue
+</style>
