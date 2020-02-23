@@ -359,7 +359,9 @@ export default class Home extends Vue {
   async initFaceApi() {
     const MODEL_URL = "/models";
 
-    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)]);
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), 
+    // faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
     this.modeloading = false;
     // this.video.addEventListener("play", () => {
     //   const canvas = faceapi.createCanvasFromMedia(this.video);
