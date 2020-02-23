@@ -7,6 +7,7 @@ import "amfe-flexible";
 import "./cube-ui";
 import "./index.css";
 import dayjs from "dayjs";
+import "webrtc-adapter";
 
 Vue.config.productionTip = false;
 

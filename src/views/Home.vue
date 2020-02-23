@@ -332,11 +332,23 @@ export default class Home extends Vue {
     });
     toast.show();
     let video = (this.video = this.$refs.video as HTMLVideoElement);
+    let device = null;
     try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const rearCamera = devices.filter(i => i.label.includes("back"));
+      if (rearCamera.length > 0) {
+        device = rearCamera[0];
+      } else [(device = devices[0])];
+      if (!device) {
+        return this.$createToast({
+          time: 1000,
+          txt: "未找到摄像头"
+        }).show();
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { exact: "environment" },
+          deviceId: { ideal: device.id },
           width: { min: 300, ideal: 500 },
           height: { min: 300, ideal: 500 }
         }
