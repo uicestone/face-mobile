@@ -336,6 +336,7 @@ export default class Home extends Vue {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
+          facingMode: { exact: "environment" },
           width: { min: 300, ideal: 500 },
           height: { min: 300, ideal: 500 }
         }
@@ -359,8 +360,9 @@ export default class Home extends Vue {
   async initFaceApi() {
     const MODEL_URL = "/models";
 
-    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL), 
-    // faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
+      // faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
     ]);
     this.modeloading = false;
     // this.video.addEventListener("play", () => {
