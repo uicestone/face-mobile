@@ -6,8 +6,11 @@ import { createProvider } from "./vue-apollo";
 import "amfe-flexible";
 import "./cube-ui";
 import "./index.css";
+import dayjs from "dayjs";
 
 Vue.config.productionTip = false;
+
+Vue.prototype.dayjs = dayjs;
 
 new Vue({
   router,

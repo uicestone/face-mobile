@@ -42,7 +42,7 @@ export class ApiService {
       data
     });
   }
-  static async CreatePerson(data: { Image: string; PersonName: string; PersonId: number; Gender: number; [key: string]: any }) {
+  static async CreatePerson(data: { Image: string; PersonName: string; Gender: number; [key: string]: any }) {
     return axios.request({
       method: "post",
       url: "/tx/CreatePerson",

@@ -9,14 +9,14 @@
       <canvas ref="canvas" style="display: none"></canvas>
       <cube-button @click="getImage" :disabled="!videoReady">拍照</cube-button>
     </div>
-    <div v-else class="select-image padding">
+    <div v-else-if="status == 'selectImage'" class="select-image padding">
       <div v-if="selectImageStatus == 'init'">
         <div class="imgs">
           <img :class="{ 'select-img': currentImg == item, face: true }" :src="item" v-for="(item, index) in images" :key="index" @click="checkFace(item)" />
         </div>
         <div v-if="searchResult">
           <div v-for="(item, index) in searchResult" :key="index">
-            <div class="face" v-for="(data, index1) in item.Candidates" :key="index1">
+            <div class="face" v-for="(data, index1) in item.Candidates" :key="index1" @click="goResidentDetail(data.PersonId)">
               <img :src="loadImage(data.PersonId)" width="100" height="100" />
               <div>{{ data.PersonName }}</div>
               <div>{{ data.Score }}</div>
@@ -32,15 +32,45 @@
         <div class="imgs flex justify-center">
           <img class="face" :src="currentImg" />
         </div>
-        <cube-input v-model="createPersonForm.PersonName" placeholder="用户名"></cube-input>
+        <cube-form class="login-form" :model="createPersonForm" :schema="schema"></cube-form>
+
+        <!-- <cube-input v-model="createPersonForm.PersonName" placeholder="用户名"></cube-input>
         <cube-input type="number" v-model="createPersonForm.PersonAge" placeholder="年龄"></cube-input>
         <cube-radio-group v-model="createPersonForm.Gender" :options="genderOptions" :horizontal="true" />
-        <cube-checker type="radio" v-model="createPersonForm.PersonLevel" :options="levelOptions" />
+        <cube-checker type="radio" v-model="createPersonForm.PersonLevel" :options="levelOptions" /> -->
 
         <div class="action px-2 pb-2">
           <cube-button @click="selectImageStatus = 'init'" :disabled="modeloading || !videoReady">取消</cube-button>
-          <cube-button @click="selectImageStatus = 'addNew'" class="ml-2" :disabled="modeloading || !videoReady">确认</cube-button>
+          <cube-button @click="createPerson" class="ml-2" :disabled="modeloading || !videoReady">确认</cube-button>
         </div>
+      </div>
+    </div>
+    <div v-else-if="status == 'residentDetail'">
+      <div class="imgs flex justify-center">
+        <img class="face" :src="loadImage(curResident.id)" />
+      </div>
+      <div>
+        <span>{{ curResident.unit.building }}栋 {{ curResident.unit.room }}号 </span>
+        <cube-button inline :style="{ background: curResident.level }">{{ levelMap[curResident.level] }}</cube-button>
+      </div>
+      <div>
+        <div v-for="(item, index) in curResident.passRecords" :key="index">
+          {{ dayjs(item.date).format("YYYY-MM-DD hh时mm分") }} {{ loadDirection({ allow: item.allow, direction: item.direction }) }}
+        </div>
+      </div>
+      <div class="action flex-wrap">
+        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: false, direction: 'OUT' })" class="w-1/2 rounded-none	">{{
+          loadDirection({ allow: false, direction: "OUT" })
+        }}</cube-button>
+        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: false, direction: 'IN' })" class="w-1/2 rounded-none	">{{
+          loadDirection({ allow: false, direction: "IN" })
+        }}</cube-button>
+        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: true, direction: 'OUT' })" class="w-1/2 rounded-none	">{{
+          loadDirection({ allow: true, direction: "OUT" })
+        }}</cube-button>
+        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: true, direction: 'IN' })" class="w-1/2 rounded-none	">{{
+          loadDirection({ allow: true, direction: "IN" })
+        }}</cube-button>
       </div>
     </div>
   </div>
@@ -51,42 +81,140 @@ import { ApiService } from "../utils/axios";
 import config from "../config";
 import { Vue, Component } from "vue-property-decorator";
 import * as faceapi from "face-api.js";
+import { Sync } from "vuex-pathify";
+import { AuthStore } from "../store/typs";
+import { api } from "../serivices";
 
 @Component
 export default class Home extends Vue {
+  @Sync("auth/user") user: AuthStore["user"];
+  dayjs: any;
   apiRoot = config.apiRoot;
   video: HTMLVideoElement = null;
   currentImg = null;
   images = [];
   searchResult: Array<any> = null;
   modeloading = true;
+  handlePassrecordLoaidng = false;
   videoReady = false;
-  status: "init" | "takePhoto" | "selectImage" = "init";
+  status: "init" | "takePhoto" | "selectImage" | "residentDetail" = "init";
   selectImageStatus: "init" | "addNew" = "init";
-  isGettingImage = false;
+  levelMap = {
+    BLUE: "蓝卡",
+    GREEN: "绿卡",
+    YELLOW: "黄卡",
+    RED: "红卡"
+  };
+
+  curResident = {
+    id: null,
+    name: null,
+    level: null,
+    unit: {
+      building: null,
+      room: null
+    },
+    passRecords: []
+  };
   createPersonForm = {
     PersonName: null,
     Gender: 1,
+    Building: 0,
+    Room: 0,
     PersonLevel: "BLUE",
-    PersonAge: null,
-    UnitId: null,
-    CommunityId: null
+    PersonAge: null
   };
-  genderOptions = [
-    { label: "男", value: 1 },
-    { label: "女", value: 2 }
-  ];
-  levelOptions = [
-    { text: "blue", value: "BLUE" },
-    { text: "green", value: "GREEN" },
-    { text: "yellow", value: "YELLOW" },
-    { text: "red", value: "RED" }
-  ];
-
-  get canCreatePersonForm() {
-    const { PersonName, Gender } = this.createPersonForm;
-    return PersonName && Gender;
-  }
+  schema = {
+    groups: [
+      {
+        legend: "新增用户",
+        fields: [
+          {
+            type: "input",
+            modelKey: "PersonName",
+            label: "用户名",
+            props: {
+              placeholder: "请输入用户名"
+            },
+            rules: {
+              required: true
+            },
+            triger: "blur"
+          },
+          {
+            type: "input",
+            modelKey: "Building",
+            label: "单元",
+            props: {
+              type: "number",
+              placeholder: "请输入单元"
+            },
+            rules: {
+              required: true
+            },
+            triger: "blur"
+          },
+          {
+            type: "input",
+            modelKey: "Room",
+            label: "房间",
+            props: {
+              type: "number",
+              placeholder: "请输入房间"
+            },
+            rules: {
+              required: true
+            },
+            triger: "blur"
+          },
+          {
+            type: "input",
+            modelKey: "PersonAge",
+            label: "年龄",
+            props: {
+              type: "number",
+              placeholder: "请输入年龄"
+            },
+            rules: {
+              required: true
+            },
+            triger: "blur"
+          },
+          {
+            type: "radio-group",
+            modelKey: "Gender",
+            label: "性别",
+            props: {
+              options: [
+                { label: "男", value: 1 },
+                { label: "女", value: 2 }
+              ]
+            },
+            rules: {
+              required: true
+            }
+          },
+          {
+            type: "checker",
+            modelKey: "PersonLevel",
+            label: "分级",
+            props: {
+              type: "radio",
+              options: [
+                // { text: "blue", value: "BLUE" },
+                { text: this.levelMap["GREEN"], value: "GREEN" },
+                { text: this.levelMap["YELLOW"], value: "YELLOW" },
+                { text: this.levelMap["RED"], value: "RED" }
+              ]
+            },
+            rules: {
+              required: true
+            }
+          }
+        ]
+      }
+    ]
+  };
 
   mounted() {
     this.init();
@@ -94,6 +222,63 @@ export default class Home extends Vue {
 
   loadImage(PersonId: string) {
     return `${this.apiRoot}/static/${PersonId}.png`;
+  }
+
+  loadDirection({ allow, direction }: { allow: boolean; direction: string }) {
+    const d = direction == "IN" ? "入" : "出";
+    const a = allow ? "✔" : "X";
+    return d + a;
+  }
+
+  async handlePassrecord({ allow, direction }: { allow: boolean; direction: string }) {
+    const { id: residentId } = this.curResident;
+    const { id: communityId } = this.user.community;
+    this.handlePassrecordLoaidng = true;
+    const result = await this.$apollo
+      .mutate({
+        mutation: api.passRecord.createOnePassRecord,
+        variables: {
+          data: {
+            date: new Date(),
+            allow,
+            direction,
+            resident: {
+              connect: {
+                id: residentId
+              }
+            },
+            community: {
+              connect: {
+                id: communityId
+              }
+            }
+          }
+        }
+      })
+      .then(() => {
+        this.$createToast({
+          type: "txt",
+          txt: "添加成功",
+          time: 1000
+        }).show();
+      })
+      .finally(() => {
+        this.handlePassrecordLoaidng = false;
+        this.status = "init";
+      });
+  }
+
+  async goResidentDetail(id: string) {
+    const data = await this.$apollo.query({
+      query: api.resident.resident,
+      variables: {
+        where: {
+          id
+        }
+      }
+    });
+    this.curResident = data.data.resident;
+    this.status = "residentDetail";
   }
 
   async takePhoto() {
@@ -134,8 +319,6 @@ export default class Home extends Vue {
       this.images = Array(4).fill(faceImages.map(i => i.toDataURL())[0]);
       this.status = "selectImage";
     }
-
-    this.isGettingImage = false;
   }
 
   async init() {
@@ -206,10 +389,13 @@ export default class Home extends Vue {
     this.searchResult = result.data.Results;
   }
   async createPerson() {
+    const { id: CommunityId } = this.user.community;
     const Image = this.currentImg;
     //@ts-ignore
-    const result = await ApiService.CreatePerson({ Image, ...this.createPersonForm });
-    console.log(result);
+    const {
+      data: { person, resident }
+    } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
+    this.goResidentDetail(person.id);
   }
 }
 </script>
@@ -222,20 +408,19 @@ export default class Home extends Vue {
     display flex
     flex-wrap wrap
     width 100%
-
     .select-img
       border solid 2px orange
-  .action
-    position fixed
-    left 0
-    bottom 0
-    width 100vw
-    display flex
+.action
+  position fixed
+  left 0
+  bottom 0
+  width 100vw
+  display flex
 .take-photo
   background #222
-  min-width: 100vw
-  min-height: 100vh
+  min-width 100vw
+  min-height 100vh
   .camera
-      min-width: 100vw
-      min-height: 80vh
+    min-width 100vw
+    min-height 80vh
 </style>

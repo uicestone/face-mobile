@@ -1,19 +1,11 @@
 import gql from "graphql-tag";
 const userFragment = `
-query {
-  me {
-    id
-    name
-    community{
-      id
-      address
-      name
-      units{
-        id
-      	building
-      }
-    }
-  }
+id
+name
+community{
+  id
+  address
+  name
 }
 `;
 

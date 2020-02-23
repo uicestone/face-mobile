@@ -5,7 +5,12 @@ const state: AuthStore = {
   token: localStorage.getItem("token") || "",
   user: {
     id: "",
-    name: ""
+    name: "",
+    community: {
+      id: "",
+      address: "",
+      name: ""
+    }
   }
 };
 

@@ -6,9 +6,28 @@
 
 <script lang="ts">
 import { Vue, Component } from "vue-property-decorator";
+import { api } from "./serivices";
+import { Sync } from "vuex-pathify";
+import { AuthStore } from "./store/typs";
 
-@Component
-export default class App extends Vue {}
+@Component({
+  apollo: {
+    user: {
+      query: api.auth.me,
+      skip() {
+        return !this.token;
+      },
+      update({ me }) {
+        this.user = me;
+        return me;
+      }
+    }
+  }
+})
+export default class App extends Vue {
+  @Sync("auth/token") token: AuthStore["token"];
+  @Sync("auth/user") user: AuthStore["user"];
+}
 </script>
 
 <style lang="stylus">
@@ -18,7 +37,7 @@ export default class App extends Vue {}
   -moz-osx-font-smoothing grayscale
   text-align center
   color #2c3e50
-  span
+  span,div
     font-size initial
 .cube-page
   position absolute
