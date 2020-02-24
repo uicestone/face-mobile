@@ -316,7 +316,7 @@ export default class Home extends Vue {
         txt: "未检测到人脸，请重新拍摄."
       }).show();
     } else {
-      this.images = Array(4).fill(faceImages.map(i => i.toDataURL())[0]);
+      this.images = faceImages.map(i => i.toDataURL());
       this.status = "selectImage";
     }
   }
@@ -332,23 +332,11 @@ export default class Home extends Vue {
     });
     toast.show();
     let video = (this.video = this.$refs.video as HTMLVideoElement);
-    let device = null;
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const rearCamera = devices.filter(i => i.label.includes("back"));
-      if (rearCamera.length > 0) {
-        device = rearCamera[0];
-      } else [(device = devices[0])];
-      if (!device) {
-        return this.$createToast({
-          time: 1000,
-          txt: "未找到摄像头"
-        }).show();
-      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          deviceId: { ideal: device.id },
+          facingMode: { exact: "environment" },
           width: { min: 300, ideal: 500 },
           height: { min: 300, ideal: 500 }
         }
