@@ -318,6 +318,23 @@ export default class Home extends Vue {
       this.images = faceImages.map(i => i.toDataURL());
       this.status = "selectImage";
     }
+
+    this.stopStreamVideo();
+  }
+
+  async stopStreamVideo() {
+    //@ts-ignore
+    let stream = this.$refs.video.srcObject;
+    if (stream) {
+      let tracks = stream.getTracks();
+      tracks.forEach(track => {
+        // stops the video track
+        track.stop();
+        this.$emit("stopped", stream);
+        //@ts-ignore
+        this.$refs.video.srcObject = null;
+      });
+    }
   }
 
   async init() {
@@ -402,7 +419,7 @@ export default class Home extends Vue {
       const {
         data: { person, resident }
       } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
-      this.goResidentDetail(person.id || person.SimilarPersonId);
+      this.goResidentDetail(resident.id || person.SimilarPersonId);
     });
   }
 }
