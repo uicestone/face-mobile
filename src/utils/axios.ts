@@ -1,8 +1,7 @@
 import Axios from "axios";
-import config from "@/config";
 
 export const axios = Axios.create({
-  baseURL: config.apiRoot
+  baseURL: process.env.VUE_APP_API_BASE
 });
 
 axios.interceptors.request.use(config => {
@@ -21,7 +20,7 @@ axios.interceptors.response.use(
 export class ApiService {
   static async getSignature({ method = "GET", action }: { method?: string; action: string }) {
     return axios.request({
-      url: "/tx/signature",
+      url: "tx/signature",
       params: {
         method,
         action
@@ -31,21 +30,21 @@ export class ApiService {
   static async SearchFaces(data: { Image: string; GroupIds?: Array<string>; [key: string]: any }) {
     return axios.request({
       method: "post",
-      url: "/tx/SearchFaces",
+      url: "tx/SearchFaces",
       data
     });
   }
   static async SearchPersons(data: { Image: string; GroupIds?: Array<string>; [key: string]: any }) {
     return axios.request({
       method: "post",
-      url: "/tx/SearchPersons",
+      url: "tx/SearchPersons",
       data
     });
   }
   static async CreatePerson(data: { Image: string; PersonName: string; Gender: number; [key: string]: any }) {
     return axios.request({
       method: "post",
-      url: "/tx/CreatePerson",
+      url: "tx/CreatePerson",
       data
     });
   }

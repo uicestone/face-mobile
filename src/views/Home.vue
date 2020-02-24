@@ -89,7 +89,7 @@ import { api } from "../serivices";
 export default class Home extends Vue {
   @Sync("auth/user") user: AuthStore["user"];
   dayjs: any;
-  apiRoot = config.apiRoot;
+  staticRoot = process.env.VUE_APP_STATIC_ROOT;
   video: HTMLVideoElement = null;
   currentImg = null;
   images = [];
@@ -221,7 +221,7 @@ export default class Home extends Vue {
   }
 
   loadImage(PersonId: string) {
-    return `${this.apiRoot}/static/${PersonId}.png`;
+    return `${this.staticRoot}${PersonId}.png`;
   }
 
   loadDirection({ allow, direction }: { allow: boolean; direction: string }) {
