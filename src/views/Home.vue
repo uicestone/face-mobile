@@ -395,15 +395,14 @@ export default class Home extends Vue {
   async createPerson() {
     //@ts-ignore
     this.$refs.createPersonForm.validate(async e => {
-      if (!e) {
-        const { id: CommunityId } = this.user.community;
-        const Image = this.currentImg;
-        //@ts-ignore
-        const {
-          data: { person, resident }
-        } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
-        this.goResidentDetail(person.id);
-      }
+      if (!e) return;
+      const { id: CommunityId } = this.user.community;
+      const Image = this.currentImg;
+      //@ts-ignore
+      const {
+        data: { person, resident }
+      } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
+      this.goResidentDetail(person.id || person.SimilarPersonId);
     });
   }
 }
