@@ -325,6 +325,7 @@ export default class Home extends Vue {
     await this.initFaceApi();
   }
   async initVideo() {
+    const {camera = "back"} = this.$route.query
     const toast = this.$createToast({
       txt: "Loading...",
       time: 0,
@@ -336,7 +337,7 @@ export default class Home extends Vue {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
-          facingMode: { exact: "environment" },
+          facingMode: camera == "back" ? { exact: "environment" } : "user",
           width: { min: 300, ideal: 500 },
           height: { min: 300, ideal: 500 }
         }
