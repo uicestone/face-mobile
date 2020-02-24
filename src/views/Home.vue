@@ -32,7 +32,7 @@
         <div class="imgs flex justify-center">
           <img class="face" :src="currentImg" />
         </div>
-        <cube-form class="login-form" :model="createPersonForm" :schema="schema"></cube-form>
+        <cube-form class="login-form" ref="createPersonForm" :model="createPersonForm" :schema="schema"></cube-form>
 
         <!-- <cube-input v-model="createPersonForm.PersonName" placeholder="用户名"></cube-input>
         <cube-input type="number" v-model="createPersonForm.PersonAge" placeholder="年龄"></cube-input>
@@ -78,7 +78,6 @@
 
 <script lang="ts">
 import { ApiService } from "../utils/axios";
-import config from "../config";
 import { Vue, Component } from "vue-property-decorator";
 import * as faceapi from "face-api.js";
 import { Sync } from "vuex-pathify";
@@ -121,7 +120,7 @@ export default class Home extends Vue {
     Gender: 1,
     Building: 0,
     Room: 0,
-    PersonLevel: "BLUE",
+    PersonLevel: "GREEN",
     PersonAge: null
   };
   schema = {
@@ -325,7 +324,7 @@ export default class Home extends Vue {
     await this.initFaceApi();
   }
   async initVideo() {
-    const {camera = "back"} = this.$route.query
+    const { camera = "back" } = this.$route.query;
     const toast = this.$createToast({
       txt: "Loading...",
       time: 0,
@@ -394,13 +393,18 @@ export default class Home extends Vue {
     this.searchResult = result.data.Results;
   }
   async createPerson() {
-    const { id: CommunityId } = this.user.community;
-    const Image = this.currentImg;
     //@ts-ignore
-    const {
-      data: { person, resident }
-    } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
-    this.goResidentDetail(person.id);
+    this.$refs.createPersonForm.validate(async e => {
+      if (!e) {
+        const { id: CommunityId } = this.user.community;
+        const Image = this.currentImg;
+        //@ts-ignore
+        const {
+          data: { person, resident }
+        } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
+        this.goResidentDetail(person.id);
+      }
+    });
   }
 }
 </script>
