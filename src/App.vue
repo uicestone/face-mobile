@@ -9,6 +9,10 @@ import { Vue, Component } from "vue-property-decorator";
 import { api } from "./serivices";
 import { Sync } from "vuex-pathify";
 import { AuthStore } from "./store/typs";
+import { Message, gqlErrorHanding } from "./utils";
+import { Toast } from "cube-ui";
+import { vm } from "./main";
+import { ApolloError } from "apollo-client";
 
 @Component({
   apollo: {
@@ -19,8 +23,12 @@ import { AuthStore } from "./store/typs";
       },
       update({ me }) {
         this.user = me;
+        if (!this.user.community) {
+          Message({ message: "用户尚未绑定小区" });
+        }
         return me;
-      }
+      },
+      error: gqlErrorHanding()
     }
   }
 })

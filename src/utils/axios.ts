@@ -1,4 +1,6 @@
 import Axios from "axios";
+import { Toast } from "cube-ui";
+import { Message } from "./index";
 
 export const axios = Axios.create({
   baseURL: process.env.VUE_APP_API_BASE
@@ -13,6 +15,9 @@ axios.interceptors.response.use(
     return res;
   },
   async err => {
+    Message({
+      message: err.message
+    }).show();
     return Promise.reject(err);
   }
 );

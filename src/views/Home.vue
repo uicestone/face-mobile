@@ -40,8 +40,8 @@
         <cube-checker type="radio" v-model="createPersonForm.PersonLevel" :options="levelOptions" /> -->
 
         <div class="action px-2 pb-2">
-          <cube-button @click="selectImageStatus = 'init'" :disabled="modeloading || !videoReady">取消</cube-button>
-          <cube-button @click="createPerson" class="ml-2" :disabled="modeloading || !videoReady">确认</cube-button>
+          <cube-button @click="selectImageStatus = 'init'" :disabled="!videoReady">取消</cube-button>
+          <cube-button @click="createPerson" class="ml-2" :disabled="!videoReady">确认</cube-button>
         </div>
       </div>
     </div>
@@ -59,18 +59,10 @@
         </div>
       </div>
       <div class="action flex-wrap">
-        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: false, direction: 'OUT' })" class="w-1/2 rounded-none	">{{
-          loadDirection({ allow: false, direction: "OUT" })
-        }}</cube-button>
-        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: false, direction: 'IN' })" class="w-1/2 rounded-none	">{{
-          loadDirection({ allow: false, direction: "IN" })
-        }}</cube-button>
-        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: true, direction: 'OUT' })" class="w-1/2 rounded-none	">{{
-          loadDirection({ allow: true, direction: "OUT" })
-        }}</cube-button>
-        <cube-button :disabled="handlePassrecordLoaidng" @click="handlePassrecord({ allow: true, direction: 'IN' })" class="w-1/2 rounded-none	">{{
-          loadDirection({ allow: true, direction: "IN" })
-        }}</cube-button>
+        <cube-button @click="handlePassrecord({ allow: false, direction: 'OUT' })" class="w-1/2 rounded-none	">{{ loadDirection({ allow: false, direction: "OUT" }) }}</cube-button>
+        <cube-button @click="handlePassrecord({ allow: false, direction: 'IN' })" class="w-1/2 rounded-none	">{{ loadDirection({ allow: false, direction: "IN" }) }}</cube-button>
+        <cube-button @click="handlePassrecord({ allow: true, direction: 'OUT' })" class="w-1/2 rounded-none	">{{ loadDirection({ allow: true, direction: "OUT" }) }}</cube-button>
+        <cube-button @click="handlePassrecord({ allow: true, direction: 'IN' })" class="w-1/2 rounded-none	">{{ loadDirection({ allow: true, direction: "IN" }) }}</cube-button>
       </div>
     </div>
   </div>
@@ -83,6 +75,18 @@ import * as faceapi from "face-api.js";
 import { Sync } from "vuex-pathify";
 import { AuthStore } from "../store/typs";
 import { api } from "../serivices";
+import { gqlErrorHanding, Message } from "../utils";
+import { resident } from "../serivices/resident";
+import { loading } from "../utils/index";
+
+const defaultCreatePersonForm = {
+  PersonName: null,
+  Gender: 1,
+  Building: "0",
+  Room: "0",
+  PersonLevel: "GREEN",
+  PersonAge: null
+};
 
 @Component
 export default class Home extends Vue {
@@ -94,7 +98,6 @@ export default class Home extends Vue {
   images = [];
   searchResult: Array<any> = null;
   modeloading = true;
-  handlePassrecordLoaidng = false;
   videoReady = false;
   status: "init" | "takePhoto" | "selectImage" | "residentDetail" = "init";
   selectImageStatus: "init" | "addNew" = "init";
@@ -115,14 +118,8 @@ export default class Home extends Vue {
     },
     passRecords: []
   };
-  createPersonForm = {
-    PersonName: null,
-    Gender: 1,
-    Building: 0,
-    Room: 0,
-    PersonLevel: "GREEN",
-    PersonAge: null
-  };
+
+  createPersonForm = { ...defaultCreatePersonForm };
   schema = {
     groups: [
       {
@@ -230,9 +227,9 @@ export default class Home extends Vue {
   }
 
   async handlePassrecord({ allow, direction }: { allow: boolean; direction: string }) {
+    const loadingToast = loading();
     const { id: residentId } = this.curResident;
     const { id: communityId } = this.user.community;
-    this.handlePassrecordLoaidng = true;
     const result = await this.$apollo
       .mutate({
         mutation: api.passRecord.createOnePassRecord,
@@ -260,28 +257,39 @@ export default class Home extends Vue {
           txt: "添加成功",
           time: 1000
         }).show();
-      })
-      .finally(() => {
-        this.handlePassrecordLoaidng = false;
         this.status = "init";
+      })
+      .catch(gqlErrorHanding())
+      .finally(() => {
+        loadingToast.hide();
       });
   }
 
   async goResidentDetail(id: string) {
-    const data = await this.$apollo.query({
-      query: api.resident.resident,
-      variables: {
-        where: {
-          id
+    const loadingToast = loading();
+    this.$apollo
+      .query({
+        query: api.resident.resident,
+        variables: {
+          where: {
+            id
+          }
         }
-      }
-    });
-    this.curResident = data.data.resident;
-    this.status = "residentDetail";
+      })
+      .then(data => {
+        this.curResident = data.data.resident;
+        this.status = "residentDetail";
+      })
+      .catch(gqlErrorHanding())
+      .finally(() => {
+        loadingToast.hide();
+      });
   }
 
   async takePhoto() {
     this.status = "takePhoto";
+    this.selectImageStatus = "init";
+    this.createPersonForm = { ...defaultCreatePersonForm };
     this.searchResult = null;
     this.currentImg = null;
     this.images = [];
@@ -307,6 +315,7 @@ export default class Home extends Vue {
     canvas.getContext("2d")!.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
     const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
     const faceImages = await faceapi.extractFaces(canvas, detections);
+
     loadingToast.hide();
     if (detections.length == 0 || faceImages.length == 0) {
       this.$createToast({
@@ -317,9 +326,8 @@ export default class Home extends Vue {
     } else {
       this.images = faceImages.map(i => i.toDataURL());
       this.status = "selectImage";
+      this.stopStreamVideo();
     }
-
-    this.stopStreamVideo();
   }
 
   async stopStreamVideo() {
@@ -330,7 +338,6 @@ export default class Home extends Vue {
       tracks.forEach(track => {
         // stops the video track
         track.stop();
-        this.$emit("stopped", stream);
         //@ts-ignore
         this.$refs.video.srcObject = null;
       });
@@ -359,13 +366,10 @@ export default class Home extends Vue {
         }
       });
       this.video!.srcObject = stream;
-      this.video.addEventListener("play", () => {
-        this.videoReady = true;
-        setTimeout(() => {
-          toast.hide();
-        }, 1000);
-      });
-      this.video.play();
+      await this.video.play();
+      await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
+      this.videoReady = true;
+      toast.hide();
     } catch (error) {
       console.log(error);
       this.$createToast({
@@ -377,49 +381,45 @@ export default class Home extends Vue {
   async initFaceApi() {
     const MODEL_URL = "/models";
 
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)
-      // faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL)]);
     this.modeloading = false;
-    // this.video.addEventListener("play", () => {
-    //   const canvas = faceapi.createCanvasFromMedia(this.video);
-    //   const canvasBox = this.$refs.canvas as HTMLDivElement;
-    //   canvasBox.appendChild(canvas);
-    //   const displaySize = { width: this.video.videoWidth, height: this.video.videoHeight };
-    //   faceapi.matchDimensions(canvas, displaySize);
-    //   setInterval(async () => {
-    //     const detections = await faceapi.detectAllFaces(this.video, new faceapi.TinyFaceDetectorOptions());
-    //     const faceImages = await faceapi.extractFaces(this.vi)
-    //     console.log(detections);
-    //     const resizedDetections = faceapi.resizeResults(detections, displaySize);
-    //     const c2d = canvas.getContext("2d");
-    //     c2d.clearRect(0, 0, canvas.width, canvas.height);
-    //     c2d.drawImage(this.video!, 0, 0, canvas.width, canvas.height);
-    //     faceapi.draw.drawDetections(canvas, resizedDetections);
-    //   }, 1000);
-    // });
-    // setTimeout(() => {
-    //   this.video.play();
-    // }, 500);
     console.log("load model finished");
   }
   async checkFace(img: string) {
     this.currentImg = img;
-    const result = await ApiService.SearchPersons({ Image: img });
-    this.searchResult = result.data.Results;
+    const loadingToast = loading();
+    ApiService.SearchPersons({ Image: img })
+      .then(result => {
+        this.searchResult = result.data.Results;
+      })
+      .catch(err => {
+        Message({ message: "搜索人脸失败: " + err.message });
+      })
+      .finally(() => {
+        loadingToast.hide();
+      });
   }
   async createPerson() {
     //@ts-ignore
     this.$refs.createPersonForm.validate(async e => {
       if (!e) return;
+      const loadingToast = loading();
       const { id: CommunityId } = this.user.community;
       const Image = this.currentImg;
       //@ts-ignore
-      const {
-        data: { person, resident }
-      } = await ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm });
-      this.goResidentDetail(resident.id || person.SimilarPersonId);
+      ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm })
+        .then(res => {
+          const {
+            data: { resident, person }
+          } = res;
+          this.goResidentDetail(resident.id || person.SimilarPersonId);
+        })
+        .catch(err => {
+          Message({ message: "创建人员失败: " + err.message });
+        })
+        .finally(() => {
+          loadingToast.hide();
+        });
     });
   }
 }

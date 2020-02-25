@@ -13,7 +13,7 @@ Vue.config.productionTip = false;
 
 Vue.prototype.dayjs = dayjs;
 
-new Vue({
+export const vm = new Vue({
   router,
   store,
   apolloProvider: createProvider(),
