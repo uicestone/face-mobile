@@ -10045,8 +10045,8 @@ vue-cli-plugin-apollo@^0.21.3:
 
 vue-cli-plugin-cube-ui@^0.2.5:
   version "0.2.5"
-  resolved "https://registry.npm.taobao.org/vue-cli-plugin-cube-ui/download/vue-cli-plugin-cube-ui-0.2.5.tgz#d2fc6a3073142bc10e352c7a73309a334c269aa6"
-  integrity sha1-0vxqMHMUK8EONSx6czCaM0wmmqY=
+  resolved "https://registry.yarnpkg.com/vue-cli-plugin-cube-ui/-/vue-cli-plugin-cube-ui-0.2.5.tgz#d2fc6a3073142bc10e352c7a73309a334c269aa6"
+  integrity sha512-ntExfEfna1rYY5v39hASeFz9Mrm5KeZWSxTK0ddUz0BVBXuEvtuWkIFoCF2iPiZlWO+K98meDJVn86V1ILjGRw==
   dependencies:
     webpack-post-compile-plugin "^1.0.0"
     webpack-transform-modules-plugin "^0.4.0"
