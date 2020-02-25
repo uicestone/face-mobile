@@ -9,6 +9,9 @@ import "./index.css";
 import dayjs from "dayjs";
 import "webrtc-adapter";
 
+//@ts-ignore
+window.navigator.getUserMedia = navigator.getUserMedia || navigator.webKitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+
 Vue.config.productionTip = false;
 
 Vue.prototype.dayjs = dayjs;
