@@ -42,15 +42,9 @@
           <img class="face" :src="currentImg" />
         </div>
         <cube-form class="login-form" ref="createPersonForm" :model="createPersonForm" :schema="schema"></cube-form>
-
-        <!-- <cube-input v-model="createPersonForm.PersonName" placeholder="用户名"></cube-input>
-        <cube-input type="number" v-model="createPersonForm.PersonAge" placeholder="年龄"></cube-input>
-        <cube-radio-group v-model="createPersonForm.Gender" :options="genderOptions" :horizontal="true" />
-        <cube-checker type="radio" v-model="createPersonForm.PersonLevel" :options="levelOptions" /> -->
-
         <div class="action px-2 pb-2">
-          <cube-button @click="selectImageStatus = 'init'" :disabled="!videoReady">取消</cube-button>
-          <cube-button @click="createPerson" class="ml-2" :disabled="!videoReady">确认</cube-button>
+          <cube-button @click="selectImageStatus = 'init'">取消</cube-button>
+          <cube-button @click="createPerson" class="ml-2" :disabled="!createPersonForm.searchUnit">确认</cube-button>
         </div>
       </div>
     </div>
@@ -64,7 +58,7 @@
           </ul>
         </div>
       </div>
-      <div class="level-card" :style="{ background: curResident.level }">{{ levelMap[curResident.level] }}</div>
+      <div class="level-card" :style="{ background: curResident.unit.level }">{{ levelMap[curResident.unit.level] }}</div>
       <div class="card">
         <div class="section-title">
           近期通行记录
@@ -85,7 +79,7 @@
 
 <script lang="ts">
 import { ApiService } from "../utils/axios";
-import { Vue, Component } from "vue-property-decorator";
+import { Vue, Component, Watch } from "vue-property-decorator";
 import * as faceapi from "face-api.js";
 import { Sync } from "vuex-pathify";
 import { AuthStore } from "../store/typs";
@@ -93,14 +87,12 @@ import { api } from "../serivices";
 import { gqlErrorHanding, Message } from "../utils";
 import { resident } from "../serivices/resident";
 import { loading } from "../utils/index";
+import { _ } from "../utils/loadash";
 
 const defaultCreatePersonForm = {
-  PersonName: null,
-  Gender: 1,
   Building: "0",
   Room: "0",
-  PersonLevel: "GREEN",
-  PersonAge: null
+  searchUnit: null
 };
 
 @Component
@@ -129,7 +121,8 @@ export default class Home extends Vue {
     level: null,
     unit: {
       building: null,
-      room: null
+      room: null,
+      level: null
     },
     passRecords: []
   };
@@ -140,18 +133,6 @@ export default class Home extends Vue {
       {
         legend: "新增用户",
         fields: [
-          {
-            type: "input",
-            modelKey: "PersonName",
-            label: "用户名",
-            props: {
-              placeholder: "请输入用户名"
-            },
-            rules: {
-              required: true
-            },
-            triger: "blur"
-          },
           {
             type: "input",
             modelKey: "Building",
@@ -177,55 +158,47 @@ export default class Home extends Vue {
               required: true
             },
             triger: "blur"
-          },
-          {
-            type: "input",
-            modelKey: "PersonAge",
-            label: "年龄",
-            props: {
-              type: "number",
-              placeholder: "请输入年龄"
-            },
-            rules: {
-              required: true
-            },
-            triger: "blur"
-          },
-          {
-            type: "radio-group",
-            modelKey: "Gender",
-            label: "性别",
-            props: {
-              options: [
-                { label: "男", value: 1 },
-                { label: "女", value: 2 }
-              ]
-            },
-            rules: {
-              required: true
-            }
-          },
-          {
-            type: "checker",
-            modelKey: "PersonLevel",
-            label: "分级",
-            props: {
-              type: "radio",
-              options: [
-                // { text: "blue", value: "BLUE" },
-                { text: this.levelMap["GREEN"], value: "GREEN" },
-                { text: this.levelMap["YELLOW"], value: "YELLOW" },
-                { text: this.levelMap["RED"], value: "RED" }
-              ]
-            },
-            rules: {
-              required: true
-            }
           }
         ]
       }
     ]
   };
+
+  @Watch("createPersonForm.Building")
+  @Watch("createPersonForm.Room")
+  async onSearchUnit() {
+    const { Building, Room } = this.createPersonForm;
+    const { id: communityId } = this.user.community;
+
+    if (Building && Room && Building.match(/\d{3,}/) && Room.match(/\d{3,}/)) {
+      const loadingToast = await loading();
+      this.$apollo
+        .mutate({
+          mutation: api.unit.units,
+          variables: {
+            where: {
+              building: { equals: Building },
+              room: { equals: Room },
+              community: { id: { equals: communityId } }
+            }
+          }
+        })
+        .then(res => {
+          const unit = _.get(res, "data.units.0");
+          this.createPersonForm.searchUnit = unit;
+          if (!unit) {
+            return this.$createDialog({
+              type: "alert",
+              content: "未找到该小区"
+            }).show();
+          }
+        })
+        .catch(gqlErrorHanding())
+        .finally(() => {
+          loadingToast.hide();
+        });
+    }
+  }
 
   mounted() {
     this.init();
@@ -420,13 +393,20 @@ export default class Home extends Vue {
       if (!e) return;
       const loadingToast = loading();
       const { id: CommunityId } = this.user.community;
+      const { Room, Building } = this.createPersonForm;
       const Image = this.currentImg;
       //@ts-ignore
-      ApiService.CreatePerson({ Image, CommunityId, ...this.createPersonForm })
+      ApiService.CreatePerson({ Image, CommunityId, Room, Building })
         .then(res => {
           const {
             data: { resident, person }
           } = res;
+          if (person.SimilarPersonId) {
+            this.$createDialog({
+              type: "alert",
+              content: "该人员已存在"
+            }).show();
+          }
           this.goResidentDetail(resident.id || person.SimilarPersonId);
         })
         .catch(err => {

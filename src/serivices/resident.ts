@@ -5,11 +5,11 @@ export const resident = gql`
     resident(where: $where) {
       id
       name
-      level
       unit {
         id
         building
         room
+        level
       }
       passRecords(first: 10, orderBy: { date: desc }) {
         id
