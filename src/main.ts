@@ -7,7 +7,6 @@ import "amfe-flexible";
 import "./cube-ui";
 import "./index.css";
 import dayjs from "dayjs";
-import "webrtc-adapter";
 
 //@ts-ignore
 window.navigator.getUserMedia = navigator.getUserMedia || navigator.webKitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
