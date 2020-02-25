@@ -223,7 +223,6 @@ export default class Home extends Vue {
         mutation: api.passRecord.createOnePassRecord,
         variables: {
           data: {
-            date: new Date(),
             allow,
             direction,
             resident: {
@@ -258,6 +257,7 @@ export default class Home extends Vue {
     this.$apollo
       .query({
         query: api.resident.resident,
+        fetchPolicy: "no-cache",
         variables: {
           where: {
             id
@@ -265,6 +265,7 @@ export default class Home extends Vue {
         }
       })
       .then(data => {
+        console.log(data);
         this.curResident = data.data.resident;
         this.status = "residentDetail";
       })
