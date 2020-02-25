@@ -136,10 +136,10 @@ export default class Home extends Vue {
           {
             type: "input",
             modelKey: "Building",
-            label: "单元",
+            label: "号",
             props: {
               type: "number",
-              placeholder: "请输入单元"
+              placeholder: "请输入楼号"
             },
             rules: {
               required: true
@@ -149,10 +149,10 @@ export default class Home extends Vue {
           {
             type: "input",
             modelKey: "Room",
-            label: "房间",
+            label: "室",
             props: {
               type: "number",
-              placeholder: "请输入房间"
+              placeholder: "请输入室号"
             },
             rules: {
               required: true
@@ -170,7 +170,7 @@ export default class Home extends Vue {
     const { Building, Room } = this.createPersonForm;
     const { id: communityId } = this.user.community;
 
-    if (Building && Room && Building.match(/\d{3,}/) && Room.match(/\d{3,}/)) {
+    if (Building && Room && Room.match(/\d{3,}/)) {
       const loadingToast = await loading();
       this.$apollo
         .mutate({
