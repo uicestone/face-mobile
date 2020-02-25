@@ -1,6 +1,8 @@
 <template>
   <div class="cube-page">
+    <h1 class="page-title">社区内控移动端</h1>
     <cube-form class="login-form" :model="model" :schema="schema" :options="options" @submit="login"></cube-form>
+    <div class="credit">诗序软件 &copy;2020</div>
   </div>
 </template>
 
@@ -48,7 +50,9 @@ export default class Login extends Vue {
             modelKey: "password",
             label: "密码",
             props: {
-              placeholder: "请输入密码"
+              placeholder: "请输入密码",
+              type: "password",
+              eye: true
             },
             rules: {
               required: true
@@ -61,7 +65,10 @@ export default class Login extends Vue {
         fields: [
           {
             type: "submit",
-            label: "登录"
+            label: "登录",
+            props: {
+              primary: true
+            }
           }
         ]
       }

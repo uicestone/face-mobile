@@ -1,25 +1,34 @@
 <template>
   <div class="cube-page">
-    <div class="padding" v-if="status == 'init'" style="display:flex; flex-direction: column; justify-content: center; height:100%">
-      <cube-button @click="takePhoto" :disabled="modeloading" primary>拍照</cube-button>
-      <cube-button style="margin-top: 50px" @click="logout" outline>退出</cube-button>
+    <div class="credit" v-if="status == 'init'">诗序软件 &copy;2020</div>
+    <div class="padding" v-if="status == 'init'" style="display:flex; flex-direction: column; justify-content: center; height:100%; align-items:center">
+      <cube-button @click="takePhoto" :disabled="modeloading" primary class="open-camera">拍照</cube-button>
+      <a @click="logout" class="logout">退出</a>
     </div>
     <div class="take-photo" v-else-if="status == 'takePhoto'">
       <video ref="video" class="camera" loop></video>
-      <canvas ref="canvas" style="display: none"></canvas>
-      <cube-button @click="getImage" :disabled="!videoReady">拍照</cube-button>
+      <canvas ref="canvas" style="display:none"></canvas>
+      <div style="display:flex;justify-content:center">
+        <cube-button @click="getImage" :disabled="!videoReady" class="shot"></cube-button>
+      </div>
     </div>
     <div v-else-if="status == 'selectImage'" class="select-image padding">
       <div v-if="selectImageStatus == 'init'">
-        <div class="imgs">
-          <img :class="{ 'select-img': currentImg == item, face: true }" :src="item" v-for="(item, index) in images" :key="index" @click="checkFace(item)" />
+        <div class="card">
+          <div class="section-title">检测到的人脸</div>
+          <div class="section-subtitle">点击选择/切换</div>
+          <div class="imgs">
+            <img :class="{ 'select-img': currentImg == item, face: true }" :src="item" v-for="(item, index) in images" :key="index" @click="checkFace(item)" />
+          </div>
         </div>
-        <div v-if="searchResult">
+        <div v-if="searchResult" class="card">
+          <div class="section-title">搜索到的人</div>
+          <div class="section-subtitle">点击选择</div>
           <div v-for="(item, index) in searchResult" :key="index">
             <div class="face" v-for="(data, index1) in item.Candidates" :key="index1" @click="goResidentDetail(data.PersonId)">
               <img :src="loadImage(data.PersonId)" width="100" height="100" />
-              <div>{{ data.PersonName }}</div>
-              <div>{{ data.Score }}</div>
+              <div class="person-name">{{ data.PersonName }}</div>
+              <div class="score">{{ data.Score.toFixed(1) }}%</div>
             </div>
           </div>
         </div>
@@ -45,18 +54,24 @@
         </div>
       </div>
     </div>
-    <div v-else-if="status == 'residentDetail'">
-      <div class="imgs flex justify-center">
-        <img class="face" :src="loadImage(curResident.id)" />
-      </div>
-      <div>
-        <span>{{ curResident.unit.building }}栋 {{ curResident.unit.room }}号 </span>
-        <cube-button inline :style="{ background: curResident.level }">{{ levelMap[curResident.level] }}</cube-button>
-      </div>
-      <div>
-        <div v-for="(item, index) in curResident.passRecords" :key="index">
-          {{ dayjs(item.date).format("YYYY-MM-DD hh时mm分") }} {{ loadDirection({ allow: item.allow, direction: item.direction }) }}
+    <div v-else-if="status == 'residentDetail'" class="padding">
+      <div class="card" style="display:flex">
+        <img class="detail-face" :src="loadImage(curResident.id)" />
+        <div style="width:100%">
+          <ul class="list">
+            <li>{{ curResident.name }}</li>
+            <li>{{ curResident.unit.building }}号 {{ curResident.unit.room }}室</li>
+          </ul>
         </div>
+      </div>
+      <div class="level-card" :style="{ background: curResident.level }">{{ levelMap[curResident.level] }}</div>
+      <div class="card">
+        <div class="section-title">
+          近期通行记录
+        </div>
+        <ul class="list">
+          <li v-for="(item, index) in curResident.passRecords" :key="index">{{ dayjs(item.date).format("MM-DD hh:mm") }} {{ loadDirection({ allow: item.allow, direction: item.direction }) }}</li>
+        </ul>
       </div>
       <div class="action flex-wrap">
         <cube-button @click="handlePassrecord({ allow: false, direction: 'OUT' })" class="w-1/2 rounded-none	">{{ loadDirection({ allow: false, direction: "OUT" }) }}</cube-button>
@@ -222,7 +237,7 @@ export default class Home extends Vue {
 
   loadDirection({ allow, direction }: { allow: boolean; direction: string }) {
     const d = direction == "IN" ? "入" : "出";
-    const a = allow ? "✔" : "X";
+    const a = allow ? "✅" : "❌";
     return d + a;
   }
 
@@ -448,4 +463,59 @@ export default class Home extends Vue {
   .camera
     min-width 100vw
     min-height 80vh
+.open-camera
+  width 5rem !important
+  height 5rem !important
+  border-radius 2.5rem !important
+  margin auto
+  font-size 1.2rem !important
+.shot
+  background #eee !important
+  border 0.15rem solid #888 !important
+  width 2.8rem !important
+  height 2.8rem !important
+  border-radius 1.4rem !important
+  font-size 1.4rem !important
+.section-title
+  font-size: 0.75rem;
+  margin: 0.5rem 0 0.5rem;
+  border-bottom: 1px #ccc solid;
+  padding-bottom: 0.2rem;
+.section-subtitle
+  font-size 0.5rem
+  margin 0.2rem 0
+  text-align right
+.person-name
+  font-size 0.48rem
+  text-align center
+  margin-top 0.2rem
+.score
+  font-size 0.4rem
+  text-align right
+  border-top 1px dashed #888
+  margin-top 0.1rem
+  padding-top 0.1rem
+.level-card
+  height 3rem
+  font-size 0.5rem
+  color rgba(255, 255, 255, 0.6)
+  box-shadow: 0.1rem 0.05rem 0.4rem #aaa;
+  padding: 0.4rem;
+  margin 0.4rem 0;
+  border-radius: 0.15rem;
+.logout
+  position absolute
+  right 0.5rem
+  top 0.5rem
+  color #888
+  font-size 0.4rem
+.detail-face
+  width 33vw
+  border-radius 0.15rem
+.list
+  padding 0 0.5rem
+  > *
+    font-size 0.9em
+    border-bottom 1px #aaa dashed
+    padding 0.3rem 0
 </style>
