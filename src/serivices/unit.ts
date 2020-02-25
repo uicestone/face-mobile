@@ -7,6 +7,9 @@ export const units = gql`
       building
       room
       level
+      residents {
+        id
+      }
     }
   }
 `;

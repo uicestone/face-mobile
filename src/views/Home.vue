@@ -42,6 +42,13 @@
           <img class="face" :src="currentImg" />
         </div>
         <cube-form class="login-form" ref="createPersonForm" :model="createPersonForm" :schema="schema"></cube-form>
+        <div v-if="createPersonForm.searchUnit">
+          <div class="level-card" :style="{ background: createPersonForm.searchUnit.level }">{{ levelMap[createPersonForm.searchUnit.level] }}</div>
+          <div class="imgs ">
+            <img :src="loadImage(item.id)" v-for="(item, index) in createPersonForm.searchUnit.residents" :key="index" class="face" />
+          </div>
+        </div>
+
         <div class="action px-2 pb-2">
           <cube-button @click="selectImageStatus = 'init'">取消</cube-button>
           <cube-button @click="createPerson" class="ml-2" :disabled="!createPersonForm.searchUnit">确认</cube-button>
@@ -382,7 +389,7 @@ export default class Home extends Vue {
         this.searchResult = result.data.Results;
       })
       .catch(err => {
-        Message({ message: "搜索人脸失败: " + err.message });
+        this.$createDialog({ content: "搜索人脸失败: " + err.message });
       })
       .finally(() => {
         loadingToast.hide();
@@ -411,7 +418,7 @@ export default class Home extends Vue {
           this.goResidentDetail(resident.id || person.SimilarPersonId);
         })
         .catch(err => {
-          Message({ message: "创建人员失败: " + err.message });
+          this.$createDialog({ content: "创建人员失败: " + err.message });
         })
         .finally(() => {
           loadingToast.hide();
@@ -458,10 +465,10 @@ export default class Home extends Vue {
   border-radius 1.4rem !important
   font-size 1.4rem !important
 .section-title
-  font-size: 0.75rem;
-  margin: 0.5rem 0 0.5rem;
-  border-bottom: 1px #ccc solid;
-  padding-bottom: 0.2rem;
+  font-size 0.75rem
+  margin 0.5rem 0 0.5rem
+  border-bottom 1px #ccc solid
+  padding-bottom 0.2rem
 .section-subtitle
   font-size 0.5rem
   margin 0.2rem 0
@@ -480,10 +487,10 @@ export default class Home extends Vue {
   height 3rem
   font-size 0.5rem
   color rgba(255, 255, 255, 0.6)
-  box-shadow: 0.1rem 0.05rem 0.4rem #aaa;
-  padding: 0.4rem;
-  margin 0.4rem 0;
-  border-radius: 0.15rem;
+  box-shadow 0.1rem 0.05rem 0.4rem #aaa
+  padding 0.4rem
+  margin 0.4rem 0
+  border-radius 0.15rem
 .logout
   position absolute
   right 0.5rem
