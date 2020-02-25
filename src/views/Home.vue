@@ -355,11 +355,16 @@ export default class Home extends Vue {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: camera == "back" ? { exact: "environment" } : "user",
-          width: { min: 300, ideal: 500 },
-          height: { min: 300, ideal: 500 }
-        }
+        video:
+          camera == "back"
+            ? {
+                facingMode: { exact: "environment" }
+              }
+            : {
+                facingMode: "user",
+                width: { min: 300, ideal: 500 },
+                height: { min: 300, ideal: 500 }
+              }
       });
       this.video!.srcObject = stream;
       await this.video.play();
