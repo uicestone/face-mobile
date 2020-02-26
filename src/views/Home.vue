@@ -97,8 +97,8 @@ import { loading } from "../utils/index";
 import { _ } from "../utils/loadash";
 
 const defaultCreatePersonForm = {
-  Building: "0",
-  Room: "0",
+  Building: "",
+  Room: "",
   searchUnit: null
 };
 
